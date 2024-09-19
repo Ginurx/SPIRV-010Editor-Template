@@ -156,7 +156,7 @@ def main():
                 parts.append(kIndent*2 + 'case ' + opname + ':') 
                 parts.append(kIndent*2 + '{')
                 parts.append(kIndent*3 + 'ParseOperands' + opname + '(endOffset);')
-                parts.append(kIndent*3 + kIndent + 'break;')
+                parts.append(kIndent*3 + 'break;')
                 parts.append(kIndent*2 + '}')
 
             
