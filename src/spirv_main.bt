@@ -1,0 +1,153 @@
+//------------------------------------------------
+//--- 010 Editor v15.0 Binary Template
+//
+//      File: spirv.bt
+//   Authors: Jeffrey Zhuang
+//   Version: 1.0
+//   Purpose: SPIR-V Binary Template
+//  Category: Shader
+// File Mask: *.spv
+//  ID Bytes: 
+//   History: 
+//------------------------------------------------
+
+#include "spirv_core_grammar_inc.bt"
+
+string GetVendorToolName(SpvWord_t& generatorId) {
+    switch(generatorId) {
+        case 0: return "Khronos";
+        case 1: return "LunarG";
+        case 2: return "Valve";
+        case 3: return "Codeplay";
+        case 4: return "NVIDIA";
+        case 5: return "ARM";
+        case 6: return "Khronos LLVM/SPIR-V Translator";
+        case 7: return "Khronos SPIR-V Tools Assembler";
+        case 8: return "Khronos Glslang Reference Front End";
+        case 9: return "Qualcomm";
+        case 10: return "AMD";
+        case 11: return "Intel";
+        case 12: return "Imagination";
+        case 13: return "Google Shaderc over Glslang";
+        case 14: return "Google spiregg";
+        case 15: return "Google rspirv";
+        case 16: return "X-LEGEND Mesa-IR/SPIR-V Translator";
+        case 17: return "Khronos SPIR-V Tools Linker";
+        case 18: return "Wine VKD3D Shader Compiler";
+        case 19: return "Tellusim Clay Shader Compiler";
+        case 20: return "W3C WebGPU Group WHLSL Shader Translator";
+        case 21: return "Google Clspv";
+        case 22: return "Google MLIR SPIR-V Serializer";
+        case 23: return "Google Tint Compiler";
+        case 24: return "Google ANGLE Shader Compiler";
+        case 25: return "Netease Games Messiah Shader Compiler";
+        case 26: return "Xenia Xenia Emulator Microcode Translator";
+        case 27: return "Embark Studios Rust GPU Compiler Backend";
+        case 28: return "gfx-rs community Naga";
+        case 29: return "Mikkosoft Productions MSP Shader Compiler";
+        case 30: return "SpvGenTwo community SpvGenTwo SPIR-V IR Tools";
+        case 31: return "Google Skia SkSL";
+        case 32: return "TornadoVM SPIRV Beehive Toolkit";
+        case 33: return "DragonJoker ShaderWriter";
+        case 34: return "Rayan Hatout SPIRVSmith";
+        case 35: return "Saarland University Shady";
+        case 36: return "Taichi Graphics Taichi";
+        default: return "Unknown Generator";
+    }
+}
+
+typedef SpvWord_t SpvVersion_t <read=ReadSpvVersion, write=WriteSpvVersion>;
+
+string ReadSpvVersion(SpvVersion_t v) {
+    string s;
+    
+    if (((v & 0x000000ff) != 0) || ((v & 0xff000000) != 0)) {
+        Printf("Invalid SPIR-V binary (failed to read the version).");
+        Exit(-1);
+    }
+    
+    SPrintf(s, "%d.%d", (v & 0xff0000) >> 16, (v & 0x00ff00) >> 8);
+    return s;
+}
+
+void WriteSpvVersion(SpvVersion_t& v, string s) {
+    SpvWord_t major;
+    SpvWord_t minor;
+    SScanf(s, "%d.%d", major, minor);
+    v = ((0xff & major) << 16) + ((0xff & minor) << 8);
+}
+
+typedef struct GeneratorInfo_ {
+    SpvWord_t tool : 16 <comment=GetVendorToolName>;
+    SpvWord_t misc : 16;
+} GeneratorInfo_t <comment=GetGeneratorInfoComment>;
+
+string GetGeneratorInfoComment(GeneratorInfo_t& g) {
+    string s;
+    SPrintf(s, "Tool: %s ; Misc: %d", GetVendorToolName(g.tool), g.misc);
+    return s;
+}
+
+typedef struct SpvHeader {
+    SpvWord_t magic <format=hex>;
+    SpvVersion_t version;
+    GeneratorInfo_t generator;
+    SpvWord_t bound;
+    SpvWord_t schema;
+} SpvHeader_t;
+
+void DetectEndianness() {
+    local uint magic;
+
+    LittleEndian();
+    magic = ReadUInt();
+    
+    if (magic != SpvMagicNumber) {
+        BigEndian();
+        magic = ReadUInt();
+        
+        if (magic != SpvMagicNumber) {
+            Printf("Invalid SPIRV binary.\n");
+            Exit(-1);
+        }
+    }
+}
+
+typedef struct InstructionOperands_ (SpvOp opcode, int64 endOffset) {
+    ParseOperands(opcode, endOffset);
+} InstructionOperands_t;
+
+typedef struct Instruction_ {
+    local int64 instPos = FTell();
+    
+    if (IsLittleEndian()) {
+        SpvOp opcode : 16;
+        SpvWord_t instWordCount : 16;
+    } else {
+        SpvWord_t instWordCount : 16;
+        SpvOp opcode : 16;
+    }
+    
+    local int64 nextInstPos = instPos + instruction.instWordCount * sizeof(SpvWord_t);
+    
+    if (instPos + sizeof(SpvWord_t) < nextInstPos) {
+        InstructionOperands_t operands(opcode, nextInstPos);
+    }
+} Instruction_t;
+
+void ParseInstruction() {
+    Instruction_t instruction;
+}
+
+
+// Main
+
+DetectEndianness();
+
+SpvHeader_t header;
+
+FSeek(5 * sizeof(SpvWord_t));
+
+while(FEof() == 0) {
+    ParseInstruction();
+}
